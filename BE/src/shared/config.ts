@@ -2,6 +2,7 @@ import { z } from 'zod'
 import fs from 'fs'
 import path from 'path'
 import { config as dotenvConfig } from 'dotenv'
+import ms from 'ms'
 
 // Nạp file .env
 dotenvConfig({ path: '.env' })
@@ -23,7 +24,7 @@ const configSchema = z.object({
     ADMIN_NAME: z.string(),
     ADMIN_PASSWORD: z.string(),
     ADMIN_EMAIL: z.string(),
-    ADMIN_PHONE: z.string(),
+    ADMIN_PHONE: z.string()
 })
 
 const configServer = configSchema.safeParse(process.env)
