@@ -1,11 +1,13 @@
+import { UserAgent } from 'src/shared/decorators/user-agent.decorator';
+import { RefreshToken } from './../../node_modules/.prisma/client/index.d';
 import { compare } from 'bcrypt';
 import { TokenService } from './../shared/services/token.service';
 import { addMilliseconds } from 'date-fns';
-import { HttpException, Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { HttpException, Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
 import { HashingService } from 'src/shared/services/hashing.service';
 import { RolesService } from './role.service';
 import { mapPrismaError } from 'src/shared/utils/prisma-error';
-import { LoginBodyType, RegisterBodyType, SendOTPBodyType, VerificationCodeType } from './auth.model';
+import { LoginBodyType, RefreshTokenBodyType, RegisterBodyType, SendOTPBodyType, VerificationCodeType } from './auth.model';
 import { AuthRepository } from './auth.repo';
 import { SharedUserRepository } from 'src/shared/repositories/shared-user.repo';
 import { generateOTP } from 'src/shared/helpers';
@@ -130,7 +132,44 @@ export class AuthService {
             expiresAt: new Date(decodedRefreshToken.exp * 1000),
             deviceId
         })
-
         return { accessToken, refreshToken }
+    }
+
+    async refreshToken({
+        refreshToken,
+        userAgent,
+        ip
+    }: RefreshTokenBodyType & { userAgent: string, ip: string }) {
+        try {
+            // 1 Kiểm tra refreshToken có hợp lệ không
+            const {userId} = await this.tokenService.verifyRefreshToken(refreshToken)
+            // 2 Kiểm tra refreshToken có tồn tại trong DB không
+            const refreshTokenInDB = await this.authRepository.findUniqueRefreshTokenIncludeUserRole({
+                token: refreshToken
+            })
+            if(!refreshTokenInDB){
+                throw new UnauthorizedException("RefreshToken đã được sử dụng")
+            }
+            // 3 Cập nhật device
+            const {deviceId, user: {roleId}} = refreshTokenInDB
+            const $updateDevice = this.authRepository.updateDevice(deviceId,{
+                userId,
+                ip,
+                userAgent,
+            })
+            // 4 Xóa refreshToken cũ
+            const $deleteRefreshToken = this.authRepository.deleteRefreshToken({
+                token: refreshToken
+            })
+            // 5 Tạo mới accessToken và refreshToken
+            const $tokens = this.generateToken({userId, roleId, deviceId})
+            const [, , tokens] = await Promise.all([$updateDevice, $deleteRefreshToken, $tokens])
+            return tokens
+        } catch (error) {
+            if (error instanceof HttpException) {
+                throw error
+            }
+            throw new UnauthorizedException()
+        }
     }
 }

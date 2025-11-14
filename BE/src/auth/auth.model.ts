@@ -77,7 +77,7 @@ export const RefreshTokenSchema = z.object({
   createdAt: z.date(),
 });
 
-export type RefreshTokenSchemaType = z.infer<typeof RefreshTokenSchema>
+export type RefreshTokenType = z.infer<typeof RefreshTokenSchema>
 
 export const RefreshTokenBodySchema = z.object({
     refreshToken: z.string()
