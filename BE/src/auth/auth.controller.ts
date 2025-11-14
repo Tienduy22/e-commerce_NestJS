@@ -1,10 +1,11 @@
 import { RefreshToken } from './../../node_modules/.prisma/client/index.d';
 import { Body, Controller, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginBodyDTO, LoginResDTO, RefreshTokenBodyDTO, RefreshTokenResDTO, RegisterBodyDTO, RegisterReDTO, SendOTPBodyDTO } from './auth.dto';
+import { LoginBodyDTO, LoginResDTO, LogoutBodyDTO, RefreshTokenBodyDTO, RefreshTokenResDTO, RegisterBodyDTO, RegisterReDTO, SendOTPBodyDTO } from './auth.dto';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { UserAgent } from 'src/shared/decorators/user-agent.decorator';
 import { HTTPMethod } from '@prisma/client';
+import { MessageReSchema } from 'src/shared/models/response.model';
 
 @Controller('auth')
 export class AuthController {
@@ -40,5 +41,11 @@ export class AuthController {
             userAgent,
             ip
         })
+    }
+
+    @Post('logout')
+    @ZodSerializerDto(MessageReSchema)
+    async logout(@Body() body: LogoutBodyDTO) {
+        return await this.authService.logout(body.refreshToken)
     }
 }
